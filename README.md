@@ -21,11 +21,6 @@ Inefficient power management
 This project explores a smarter approach by predicting power consumption first, then scaling resources accordingly.
 How to Run
 
-Clone the repository:
-
-git clone https://github.com/yourusername/ai-power-aware-cloud.git
-cd ai-power-aware-cloud
-
 
 Install dependencies:
 
