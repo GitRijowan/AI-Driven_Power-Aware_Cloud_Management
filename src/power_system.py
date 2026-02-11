@@ -12,6 +12,11 @@ class PowerAwareCloudSystem:
         self.model = None
         self.data = None
         self.results = []
+        self.active_vms = 1
+        self.upper_threshold = 3500
+        self.lower_threshold = 2000
+        self.max_vms = 10
+        self.min_vms = 1
 
     def load_and_preprocess_data(self):
         """
@@ -35,24 +40,6 @@ class PowerAwareCloudSystem:
         except Exception as e:
             print(f"[!] Error loading cleaned CSV: {e}")
             return False
-
-    def generate_power_labels(self):
-        """
-        Generates synthetic power labels (PowerGen Logic).
-        """
-        print("[-] Generating Synthetic Power Consumption Labels...")
-
-        # Sum utilization across all roles to get total system load
-        total_load = self.data.sum(axis=1)
-
-        # Generate Power Target
-        power_consumption = config.BASE_POWER_WATTS + (total_load * config.CPU_POWER_COEFF)
-
-        # Add slight random noise to make it realistic for AI to learn
-        noise = np.random.normal(0, 2, size=len(power_consumption))
-        self.data['Power_Consumption'] = power_consumption + noise
-
-        print("[+] Power labels generated and added to dataset.")
 
     def train_ai_model(self):
         """
@@ -104,7 +91,6 @@ class PowerAwareCloudSystem:
         """
         print("[-] Step 3 & 4: Running Dynamic Resource Scaling Simulation...")
 
-        active_vms = 1  # Start with 1 VM
         logs = []
 
         simulation_data = self.data.head(100)
@@ -112,17 +98,17 @@ class PowerAwareCloudSystem:
         for index, row in simulation_data.iterrows():
             current_features = pd.DataFrame([row.drop('Power_Consumption')],
                                             columns=row.drop('Power_Consumption').index)
+
             predicted_power = self.model.predict(current_features)[0]
 
-            # Perform scaling decision based on predicted power
+            # Perform scaling decision
             self.scale_resources(predicted_power)
 
-            # Track simulation results
             logs.append({
                 'Time': index,
                 'Predicted_Power': predicted_power,
-                'Active_VMs': active_vms,
-                'Action': 'SCALE'  # Placeholder for actual scaling action
+                'Active_VMs': self.active_vms,
+                'Action': 'AUTO'
             })
 
         self.sim_results = pd.DataFrame(logs)
@@ -131,28 +117,30 @@ class PowerAwareCloudSystem:
 
     def scale_resources(self, predicted_power):
         """
-        Simulate resource scaling based on predicted power consumption (Locally).
-        Instead of calling cloud APIs, we simulate scaling actions locally.
+        Simulate dynamic resource scaling based on predicted power.
         """
-        action = 'HOLD'  # Default action
 
-        if predicted_power > config.HIGH_THRESHOLD:
+        action = 'HOLD'
+
+        # Scale UP
+        if predicted_power > self.upper_threshold and self.active_vms < self.max_vms:
             action = 'SCALE_UP'
             print("[+] Scaling up resources (Locally)...")
-            self.update_vm_count(2)  # Simulate scaling up to 2 VMs
-        elif predicted_power < config.IDLE_THRESHOLD:
+            self.update_vm_count(self.active_vms + 1)
+
+        # Scale DOWN (but never below 1 VM)
+        elif predicted_power < self.lower_threshold and self.active_vms > self.min_vms:
             action = 'SCALE_DOWN'
             print("[+] Scaling down resources (Locally)...")
-            self.update_vm_count(1)  # Simulate scaling down to 1 VM
+            self.update_vm_count(self.active_vms - 1)
+
         else:
             print("[+] Holding resources (Locally)...")
 
         return action
 
     def update_vm_count(self, desired_capacity):
-        """
-        Simulate the process of changing the number of active VMs (Locally).
-        """
+        self.active_vms = desired_capacity  # ✅ store new value
         print(f"[+] Active VM count set to: {desired_capacity}")
 
     def visualize_results(self):
