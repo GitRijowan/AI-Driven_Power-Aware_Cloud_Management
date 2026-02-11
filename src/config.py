@@ -18,5 +18,5 @@ DATASET_PATH = os.path.join(DATA_DIR, 'cloud_dataset.csv')
 # System Simulation Constants
 BASE_POWER_WATTS = 100.0
 CPU_POWER_COEFF = 50.0
-IDLE_THRESHOLD = 0.2
-HIGH_THRESHOLD = 0.8
+IDLE_THRESHOLD = 150
+HIGH_THRESHOLD = 250
